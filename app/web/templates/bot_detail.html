@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Bot tafsilotlari</p>
+            <h2>{{ bot.name }}</h2>
+            <p class="muted">@{{ bot.bot_username or "username_olinmagan" }}</p>
+        </div>
+        <div class="actions">
+            <form method="post" action="/bots/{{ bot.id }}/toggle">
+                <button type="submit">{% if bot.is_active %}To'xtatish{% else %}Ishga tushirish{% endif %}</button>
+            </form>
+            <form method="post" action="/bots/{{ bot.id }}/restart">
+                <button class="ghost" type="submit">Restart</button>
+            </form>
+        </div>
+    </div>
+    <div class="stats">
+        <article class="stat-card">
+            <span>Status</span>
+            <strong>{% if bot.is_active %}Faol{% else %}O'chirilgan{% endif %}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Slug</span>
+            <strong>{{ bot.slug }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Admins</span>
+            <strong>{{ bot.memberships|length }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Public URL</span>
+            <strong>{{ request.app.state.settings.public_base_url }}</strong>
+        </article>
+    </div>
+</section>
+
+<section class="panel form-panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Legacy kbot</p>
+            <h2>Runtime konfiguratsiyasi</h2>
+        </div>
+    </div>
+    {% if error %}
+    <div class="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/bots/{{ bot.id }}/settings" class="grid-form">
+        <label>
+            <span>Nomi</span>
+            <input type="text" name="name" value="{{ bot.name }}" required>
+        </label>
+        {% if current_user.is_superadmin %}
+        <label class="full-span">
+            <span>Yangi token</span>
+            <input type="password" name="token" value="" autocomplete="new-password">
+        </label>
+        {% endif %}
+        <div class="full-span">
+            <button type="submit">Saqlash</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel form-panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Panel adminlari</p>
+            <h2>Shu botga kirish huquqi</h2>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Login</th>
+                    <th>Rol</th>
+                    <th>Yaratilgan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for membership in bot.memberships %}
+                <tr>
+                    <td>{{ membership.user.login }}</td>
+                    <td>{{ membership.role }}</td>
+                    <td>{{ membership.created_at.strftime("%Y-%m-%d %H:%M") if membership.created_at else "-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <form method="post" action="/bots/{{ bot.id }}/admins" class="grid-form">
+        <label>
+            <span>Yangi admin login</span>
+            <input type="text" name="login" required>
+        </label>
+        <label>
+            <span>Yangi admin parol</span>
+            <input type="password" name="password" required>
+        </label>
+        <div class="full-span">
+            <button type="submit">Admin qo'shish</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

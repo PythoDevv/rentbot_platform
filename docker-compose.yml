@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: rentbot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rentbot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  app:
+    build:
+      context: ..
+      dockerfile: rentbot_platform/Dockerfile
+    container_name: rentbot-app
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - ../.env
+      - .env
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:

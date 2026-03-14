@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Umumiy holat</p>
+            <h2>Boshqaruv markazi</h2>
+        </div>
+    </div>
+    <div class="stats">
+        <article class="stat-card">
+            <span>Jami botlar</span>
+            <strong>{{ total_bots }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Faol botlar</span>
+            <strong>{{ active_bots }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Panel adminlar</span>
+            <strong>{{ total_admins }}</strong>
+        </article>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Runtime</p>
+            <h2>Hozirgi ish rejimi</h2>
+        </div>
+    </div>
+    <div class="stack muted">
+        <p>Bitta FastAPI ilova admin panel va legacy `kbot` runnerlarni boshqaradi.</p>
+        <p>Har yangi bot `kbot/app.py` ichidagi hozirgi vazifalar bilan alohida process sifatida ishga tushadi.</p>
+        <p>Public URL `.env` dagi `PUBLIC_BASE_URL` orqali boshqariladi.</p>
+        <p>Joriy public URL: <a href="{{ request.app.state.settings.public_base_url }}" target="_blank" rel="noreferrer">{{ request.app.state.settings.public_base_url }}</a></p>
+    </div>
+</section>
+{% endblock %}

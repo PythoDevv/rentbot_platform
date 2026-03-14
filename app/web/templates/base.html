@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ request.app.title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+    <div class="shell">
+        <aside class="sidebar">
+            <div>
+                <p class="eyebrow">Polling Multi Bot</p>
+                <h1>{{ request.app.title }}</h1>
+                {% if current_user %}
+                <p class="muted">Login: {{ current_user.login }}</p>
+                {% endif %}
+            </div>
+            {% if current_user %}
+            <nav class="nav">
+                <a href="/">Dashboard</a>
+                <a href="/bots">Botlar</a>
+                {% if current_user.is_superadmin %}
+                <a href="/bots/new">Yangi bot</a>
+                {% endif %}
+            </nav>
+            <form action="/logout" method="post">
+                <button class="ghost full" type="submit">Chiqish</button>
+            </form>
+            {% endif %}
+        </aside>
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Tenant botlar</p>
+            <h2>Barcha botlar</h2>
+        </div>
+        {% if current_user.is_superadmin %}
+        <a class="button-link" href="/bots/new">Yangi bot</a>
+        {% endif %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nomi</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Ochilgan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bot in bots %}
+                <tr>
+                    <td><a href="/bots/{{ bot.id }}">{{ bot.name }}</a></td>
+                    <td>{{ bot.bot_username or "-" }}</td>
+                    <td>
+                        {% if bot.is_active %}
+                        <span class="badge success">Faol</span>
+                        {% else %}
+                        <span class="badge danger">To'xtagan</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ bot.created_at.strftime("%Y-%m-%d %H:%M") if bot.created_at else "-" }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">Hozircha bot yo'q.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

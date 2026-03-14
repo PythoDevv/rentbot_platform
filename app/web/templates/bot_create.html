@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel form-panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Legacy kbot</p>
+            <h2>Yangi bot qo'shish</h2>
+        </div>
+    </div>
+    {% if error %}
+    <div class="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/bots/new" class="grid-form">
+        <label>
+            <span>Bot nomi</span>
+            <input type="text" name="name" value="{{ form.name }}" required>
+        </label>
+        <label>
+            <span>Bot token</span>
+            <input type="password" name="token" autocomplete="off" required>
+        </label>
+        <label>
+            <span>Owner login</span>
+            <input type="text" name="owner_login" value="{{ form.owner_login }}" required>
+        </label>
+        <label>
+            <span>Owner parol</span>
+            <input type="password" name="owner_password" required>
+        </label>
+        <div class="full-span">
+            <button type="submit">Botni yaratish va ishga tushirish</button>
+        </div>
+    </form>
+</section>
+{% endblock %}
