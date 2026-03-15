@@ -22,6 +22,7 @@ class RunningBot:
     task: asyncio.Task[None]
     stop_event: asyncio.Event
     process: asyncio.subprocess.Process | None = None
+    config: BotTenant | None = None
 
 
 class BotRuntime:
@@ -82,6 +83,7 @@ class BotRuntime:
             token=bot_config.token,
             task=task,
             stop_event=stop_event,
+            config=bot_config,
         )
 
     async def _stop_bot_locked(self, bot_id: int) -> None:
@@ -115,7 +117,11 @@ class BotRuntime:
                     if not bot_config or not bot_config.is_active:
                         return
 
-                env = self._build_subprocess_env(bot_config.token, bot_id)
+                running = self._bots.get(bot_id)
+                if running:
+                    running.config = bot_config
+
+                env = self._build_subprocess_env(bot_config)
                 logger.info(
                     "Starting legacy kbot runner for bot_id=%s using %s",
                     bot_id,
@@ -171,27 +177,38 @@ class BotRuntime:
                     await self._terminate_process(process, bot_id)
                     self._clear_running_process(bot_id, process)
 
-    def _build_subprocess_env(self, token: str, bot_id: int) -> dict[str, str]:
+    def _build_subprocess_env(self, bot_config: BotTenant) -> dict[str, str]:
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
-        env["BOT_TOKEN"] = token
+        env["BOT_TOKEN"] = bot_config.token
         env["PUBLIC_BASE_URL"] = self.settings.normalized_public_base_url
         env["ip"] = self.settings.legacy_ip or self.settings.normalized_public_base_url
-        env["RENTBOT_BOT_ID"] = str(bot_id)
+        env["RENTBOT_BOT_ID"] = str(bot_config.id)
+        env.update(self._build_legacy_db_env(bot_config))
 
-        if self.settings.legacy_admins:
-            env["ADMINS"] = self.settings.legacy_admins
-        if self.settings.legacy_db_user:
-            env["DB_USER"] = self.settings.legacy_db_user
-        if self.settings.legacy_db_pass:
-            env["DB_PASS"] = self.settings.legacy_db_pass
-        if self.settings.legacy_db_name:
-            env["DB_NAME"] = self.settings.legacy_db_name
-        if self.settings.legacy_db_host:
-            env["DB_HOST"] = self.settings.legacy_db_host
-        if self.settings.legacy_db_port:
-            env["DB_PORT"] = self.settings.legacy_db_port
+        return env
 
+    def _build_legacy_db_env(self, bot_config: BotTenant) -> dict[str, str]:
+        env: dict[str, str] = {}
+        legacy_admins = bot_config.legacy_admins or self.settings.legacy_admins
+        legacy_db_user = bot_config.legacy_db_user or self.settings.legacy_db_user
+        legacy_db_pass = bot_config.legacy_db_pass or self.settings.legacy_db_pass
+        legacy_db_name = bot_config.legacy_db_name or self.settings.legacy_db_name
+        legacy_db_host = bot_config.legacy_db_host or self.settings.legacy_db_host
+        legacy_db_port = bot_config.legacy_db_port or self.settings.legacy_db_port
+
+        if legacy_admins:
+            env["ADMINS"] = legacy_admins
+        if legacy_db_user:
+            env["DB_USER"] = legacy_db_user
+        if legacy_db_pass:
+            env["DB_PASS"] = legacy_db_pass
+        if legacy_db_name:
+            env["DB_NAME"] = legacy_db_name
+        if legacy_db_host:
+            env["DB_HOST"] = legacy_db_host
+        if legacy_db_port:
+            env["DB_PORT"] = legacy_db_port
         return env
 
     async def _stream_process_output(

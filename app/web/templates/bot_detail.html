@@ -47,6 +47,9 @@
     {% if error %}
     <div class="alert">{{ error }}</div>
     {% endif %}
+    {% if success %}
+    <div class="alert success">{{ success }}</div>
+    {% endif %}
     <form method="post" action="/bots/{{ bot.id }}/settings" class="grid-form">
         <label>
             <span>Nomi</span>
@@ -58,6 +61,30 @@
             <input type="password" name="token" value="" autocomplete="new-password">
         </label>
         {% endif %}
+        <label class="full-span">
+            <span>Telegram admin ID lar (`ADMINS`)</span>
+            <input type="text" name="legacy_admins" value="{{ resolved_legacy_admins }}">
+        </label>
+        <label>
+            <span>DB nomi</span>
+            <input type="text" name="legacy_db_name" value="{{ bot.legacy_db_name or '' }}" placeholder="Alohida bot DB nomi">
+        </label>
+        <label>
+            <span>DB host</span>
+            <input type="text" name="legacy_db_host" value="{{ bot.legacy_db_host or request.app.state.settings.legacy_db_host or '' }}">
+        </label>
+        <label>
+            <span>DB port</span>
+            <input type="text" name="legacy_db_port" value="{{ bot.legacy_db_port or request.app.state.settings.legacy_db_port or '' }}">
+        </label>
+        <label>
+            <span>DB user</span>
+            <input type="text" name="legacy_db_user" value="{{ bot.legacy_db_user or request.app.state.settings.legacy_db_user or '' }}">
+        </label>
+        <label>
+            <span>DB parol</span>
+            <input type="password" name="legacy_db_pass" value="" autocomplete="new-password" placeholder="O'zgartirish uchun yangi qiymat kiriting">
+        </label>
         <div class="full-span">
             <button type="submit">Saqlash</button>
         </div>
@@ -104,5 +131,83 @@
             <button type="submit">Admin qo'shish</button>
         </div>
     </form>
+</section>
+
+<section class="panel form-panel">
+    <div class="heading">
+        <div>
+            <p class="eyebrow">Foydalanuvchilar</p>
+            <h2>Per-bot baza boshqaruvi</h2>
+            <p class="muted">Har bot o'zining alohida `Users` jadvali bilan ishlaydi.</p>
+        </div>
+        <div class="actions">
+            <a class="button-link" href="/bots/{{ bot.id }}/users/export?format=csv">CSV yuklab olish</a>
+            <a class="button-link ghost" href="/bots/{{ bot.id }}/users/export?format=json">JSON yuklab olish</a>
+        </div>
+    </div>
+    {% if user_summary.error %}
+    <div class="alert">{{ user_summary.error }}</div>
+    {% endif %}
+    <div class="stats">
+        <article class="stat-card">
+            <span>DB nomi</span>
+            <strong>{{ user_summary.database_name or "-" }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Izolatsiya</span>
+            <strong>{% if user_summary.is_isolated %}Alohida{% else %}Global fallback{% endif %}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Jami user</span>
+            <strong>{{ user_summary.total_users }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Balli userlar</span>
+            <strong>{{ user_summary.contest_users }}</strong>
+        </article>
+    </div>
+    <form method="post" action="/bots/{{ bot.id }}/users/import" enctype="multipart/form-data" class="grid-form import-form">
+        <label class="full-span">
+            <span>CSV yoki JSON fayl</span>
+            <input type="file" name="file" accept=".csv,.json" required>
+        </label>
+        <label class="checkbox-row full-span">
+            <input type="checkbox" name="replace_existing" value="true">
+            <span>Importdan oldin mavjud userlarni tozalash</span>
+        </label>
+        <div class="full-span">
+            <button type="submit">Foydalanuvchilarni yuklash</button>
+        </div>
+    </form>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ism</th>
+                    <th>Username</th>
+                    <th>Telefon</th>
+                    <th>Ball</th>
+                    <th>Telegram ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if recent_users %}
+                    {% for user in recent_users %}
+                    <tr>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.username or "-" }}</td>
+                        <td>{{ user.phone or "-" }}</td>
+                        <td>{{ user.score }}</td>
+                        <td>{{ user.telegram_id }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="muted-cell">Hozircha foydalanuvchilar topilmadi.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
 </section>
 {% endblock %}

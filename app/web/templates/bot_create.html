@@ -28,6 +28,33 @@
             <span>Owner parol</span>
             <input type="password" name="owner_password" required>
         </label>
+        <label class="full-span">
+            <span>Telegram admin ID lar (`ADMINS`)</span>
+            <input type="text" name="legacy_admins" value="{{ form.legacy_admins or default_legacy_admins }}" placeholder="123456789,987654321">
+        </label>
+        <label>
+            <span>Alohida DB nomi</span>
+            <input type="text" name="legacy_db_name" value="{{ form.legacy_db_name }}" placeholder="bot_slug_uchun_auto">
+        </label>
+        <label>
+            <span>DB host</span>
+            <input type="text" name="legacy_db_host" value="{{ form.legacy_db_host }}" placeholder="{{ request.app.state.settings.legacy_db_host or 'postgres' }}">
+        </label>
+        <label>
+            <span>DB port</span>
+            <input type="text" name="legacy_db_port" value="{{ form.legacy_db_port }}" placeholder="{{ request.app.state.settings.legacy_db_port or '5432' }}">
+        </label>
+        <label>
+            <span>DB user</span>
+            <input type="text" name="legacy_db_user" value="{{ form.legacy_db_user }}" placeholder="{{ request.app.state.settings.legacy_db_user or 'postgres' }}">
+        </label>
+        <label>
+            <span>DB parol</span>
+            <input type="password" name="legacy_db_pass" value="" autocomplete="new-password" placeholder="Bo'sh qoldirilsa default ishlatiladi">
+        </label>
+        <p class="form-note full-span">
+            Har yangi bot uchun alohida database yaratiladi. DB nomi kiritilmasa avtomatik generatsiya qilinadi.
+        </p>
         <div class="full-span">
             <button type="submit">Botni yaratish va ishga tushirish</button>
         </div>

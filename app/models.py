@@ -45,6 +45,12 @@ class BotTenant(Base):
         Text,
         default="Admin siz bilan bog'lanadi.",
     )
+    legacy_admins: Mapped[str | None] = mapped_column(Text, nullable=True)
+    legacy_db_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    legacy_db_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    legacy_db_port: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    legacy_db_user: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    legacy_db_pass: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

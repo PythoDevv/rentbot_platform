@@ -65,6 +65,12 @@ textarea {
     color: var(--ink);
 }
 
+.form-note {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
 label span {
     display: block;
     font-size: 14px;
@@ -224,6 +230,26 @@ td {
     background: var(--danger-soft);
     color: var(--danger);
     border-radius: 14px;
+}
+
+.alert.success {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkbox-row input {
+    width: auto;
+    margin: 0;
+}
+
+.muted-cell {
+    color: var(--muted);
 }
 
 .login-page {

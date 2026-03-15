@@ -33,6 +33,7 @@ Kamida quyidagilarni o'zgartiring:
 
 - `SECRET_KEY`
 - `SUPERADMIN_PASSWORD`
+- `DATABASE_ADMIN_URL`
 - `PUBLIC_BASE_URL`
 - `ADMINS`
 - `DB_USER`
@@ -48,6 +49,12 @@ Compose uchun qo'shimcha yo'l sozlamalari:
 - `PLATFORM_DOCKERFILE=rentbot_platform/Dockerfile`
 
 Agar papka nomini o'zgartirsangiz, ikkala qiymatni ham mos ravishda yangilang.
+
+`DATABASE_ADMIN_URL` tavsiya etiladi. Platform har yangi bot uchun alohida Postgres database yaratadi. Misol:
+
+```env
+DATABASE_ADMIN_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+```
 
 ## 3. Deploydan oldin tekshirish
 

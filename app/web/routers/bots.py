@@ -1,5 +1,6 @@
 import logging
 from secrets import token_hex
+from urllib.parse import urlencode
 
 from aiogram import Bot
 from sqlalchemy import select
@@ -8,19 +9,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from slugify import slugify
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from app.config import get_settings
 from app.db import get_db_session
 from app.models import BotMembership, BotTenant, PanelUser
 from app.services.auth import create_panel_user
+from app.services.tenant_db import TenantDatabaseManager, generate_database_name
 from app.web.dependencies import get_accessible_bot, get_current_user, require_superadmin
 
 
 router = APIRouter(prefix="/bots", tags=["bots"])
 templates = Jinja2Templates(directory="app/web/templates")
 logger = logging.getLogger(__name__)
+settings = get_settings()
+tenant_db = TenantDatabaseManager(settings)
 
 
 async def _fetch_bot_username(token: str) -> tuple[str | None, str | None]:
@@ -42,10 +47,16 @@ def _default_create_context(current_user: PanelUser, error: str | None = None, f
     return {
         "current_user": current_user,
         "error": error,
+        "default_legacy_admins": settings.legacy_admins or "",
         "form": form
         or {
             "name": "",
             "owner_login": "",
+            "legacy_db_name": "",
+            "legacy_admins": settings.legacy_admins or "",
+            "legacy_db_host": settings.legacy_db_host or "",
+            "legacy_db_port": settings.legacy_db_port or "",
+            "legacy_db_user": settings.legacy_db_user or "",
         },
     }
 
@@ -60,6 +71,49 @@ async def _load_bot_detail_for_template(session: AsyncSession, bot_id: int) -> B
     )
     result = await session.execute(query)
     return result.scalar_one_or_none()
+
+
+async def _render_bot_detail(
+    request: Request,
+    session: AsyncSession,
+    current_user: PanelUser,
+    bot_id: int,
+    *,
+    error: str | None = None,
+    success: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    bot = await _load_bot_detail_for_template(session, bot_id)
+    if not bot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot topilmadi")
+
+    if not current_user.is_superadmin:
+        allowed_bot = await get_accessible_bot(bot_id, current_user, session)
+        if not allowed_bot:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot topilmadi")
+
+    user_summary = await tenant_db.fetch_user_summary(bot)
+    recent_users: list[dict] = []
+    if user_summary.error is None:
+        try:
+            recent_users = await tenant_db.fetch_recent_users(bot, limit=20)
+        except Exception as exc:
+            user_summary.error = f"Userlar o'qilmadi: {exc.__class__.__name__}"
+
+    return templates.TemplateResponse(
+        request=request,
+        name="bot_detail.html",
+        context={
+            "current_user": current_user,
+            "bot": bot,
+            "error": error,
+            "success": success,
+            "user_summary": user_summary,
+            "recent_users": recent_users,
+            "resolved_legacy_admins": tenant_db.resolve_legacy_admins(bot),
+        },
+        status_code=status_code,
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -108,6 +162,12 @@ async def create_bot_submit(
     token: str = Form(...),
     owner_login: str = Form(...),
     owner_password: str = Form(...),
+    legacy_admins: str = Form(default=""),
+    legacy_db_name: str = Form(default=""),
+    legacy_db_host: str = Form(default=""),
+    legacy_db_port: str = Form(default=""),
+    legacy_db_user: str = Form(default=""),
+    legacy_db_pass: str = Form(default=""),
     welcome_text: str = Form(default=""),
     menu_button_label: str = Form(default=""),
     support_text: str = Form(default=""),
@@ -118,6 +178,12 @@ async def create_bot_submit(
     token = token.strip()
     owner_login = owner_login.strip()
     owner_password = owner_password.strip()
+    legacy_admins = legacy_admins.strip()
+    legacy_db_name = legacy_db_name.strip()
+    legacy_db_host = legacy_db_host.strip()
+    legacy_db_port = legacy_db_port.strip()
+    legacy_db_user = legacy_db_user.strip()
+    legacy_db_pass = legacy_db_pass.strip()
 
     if not name or not token or not owner_login or not owner_password:
         return templates.TemplateResponse(
@@ -130,6 +196,11 @@ async def create_bot_submit(
                     "name": name,
                     "token": token,
                     "owner_login": owner_login,
+                    "legacy_admins": legacy_admins,
+                    "legacy_db_name": legacy_db_name,
+                    "legacy_db_host": legacy_db_host,
+                    "legacy_db_port": legacy_db_port,
+                    "legacy_db_user": legacy_db_user,
                 },
             ),
             status_code=400,
@@ -140,6 +211,11 @@ async def create_bot_submit(
     form_data = {
         "name": name,
         "owner_login": owner_login,
+        "legacy_admins": legacy_admins,
+        "legacy_db_name": legacy_db_name,
+        "legacy_db_host": legacy_db_host,
+        "legacy_db_port": legacy_db_port,
+        "legacy_db_user": legacy_db_user,
     }
 
     bot_username, token_error = await _fetch_bot_username(token)
@@ -165,14 +241,33 @@ async def create_bot_submit(
         menu_button_label=menu_button_label or "Legacy kbot menyusi",
         support_text=support_text or "Bot logikasi kbot/app.py orqali boshqariladi.",
         description="`kbot/app.py` ichidagi legacy oqim process runner orqali ishlaydi.",
+        legacy_admins=legacy_admins or settings.legacy_admins,
+        legacy_db_name=legacy_db_name or generate_database_name(slug),
+        legacy_db_host=legacy_db_host or settings.legacy_db_host,
+        legacy_db_port=legacy_db_port or settings.legacy_db_port,
+        legacy_db_user=legacy_db_user or settings.legacy_db_user,
+        legacy_db_pass=legacy_db_pass or settings.legacy_db_pass,
         is_active=True,
     )
 
     try:
         session.add(bot)
         await session.flush()
+        await tenant_db.ensure_bot_database(bot)
         session.add(BotMembership(user_id=owner.id, bot_id=bot.id, role="owner"))
         await session.commit()
+    except ValueError as exc:
+        await session.rollback()
+        return templates.TemplateResponse(
+            request=request,
+            name="bot_create.html",
+            context=_default_create_context(
+                current_user,
+                error=str(exc),
+                form=form_data,
+            ),
+            status_code=400,
+        )
     except IntegrityError:
         await session.rollback()
         return templates.TemplateResponse(
@@ -181,6 +276,18 @@ async def create_bot_submit(
             context=_default_create_context(
                 current_user,
                 error="Bot slug yoki token allaqachon mavjud.",
+                form=form_data,
+            ),
+            status_code=400,
+        )
+    except Exception as exc:
+        await session.rollback()
+        return templates.TemplateResponse(
+            request=request,
+            name="bot_create.html",
+            context=_default_create_context(
+                current_user,
+                error=f"Bot uchun alohida baza yaratilmadi: {exc.__class__.__name__}",
                 form=form_data,
             ),
             status_code=400,
@@ -197,23 +304,12 @@ async def bot_detail(
     current_user: PanelUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> HTMLResponse:
-    bot = await _load_bot_detail_for_template(session, bot_id)
-    if not bot:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot topilmadi")
-
-    if not current_user.is_superadmin:
-        allowed_bot = await get_accessible_bot(bot_id, current_user, session)
-        if not allowed_bot:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot topilmadi")
-
-    return templates.TemplateResponse(
-        request=request,
-        name="bot_detail.html",
-        context={
-            "current_user": current_user,
-            "bot": bot,
-            "error": None,
-        },
+    return await _render_bot_detail(
+        request,
+        session,
+        current_user,
+        bot_id,
+        success=request.query_params.get("success"),
     )
 
 
@@ -226,6 +322,12 @@ async def update_bot_settings(
     menu_button_label: str = Form(default=""),
     support_text: str = Form(default=""),
     description: str = Form(default=""),
+    legacy_admins: str = Form(default=""),
+    legacy_db_name: str = Form(default=""),
+    legacy_db_host: str = Form(default=""),
+    legacy_db_port: str = Form(default=""),
+    legacy_db_user: str = Form(default=""),
+    legacy_db_pass: str = Form(default=""),
     token: str | None = Form(default=None),
     current_user: PanelUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
@@ -236,15 +338,12 @@ async def update_bot_settings(
 
     cleaned_name = name.strip()
     if not cleaned_name:
-        detailed_bot = await _load_bot_detail_for_template(session, bot_id)
-        return templates.TemplateResponse(
-            request=request,
-            name="bot_detail.html",
-            context={
-                "current_user": current_user,
-                "bot": detailed_bot or bot,
-                "error": "Bot nomi bo'sh bo'lishi mumkin emas.",
-            },
+        return await _render_bot_detail(
+            request,
+            session,
+            current_user,
+            bot_id,
+            error="Bot nomi bo'sh bo'lishi mumkin emas.",
             status_code=400,
         )
 
@@ -254,38 +353,62 @@ async def update_bot_settings(
     bot.menu_button_label = menu_button_label or bot.menu_button_label
     bot.support_text = support_text or bot.support_text
     bot.description = description or bot.description
+    bot.legacy_admins = legacy_admins.strip() or bot.legacy_admins or settings.legacy_admins
+    bot.legacy_db_name = legacy_db_name.strip() or bot.legacy_db_name or generate_database_name(bot.slug)
+    bot.legacy_db_host = legacy_db_host.strip() or bot.legacy_db_host or settings.legacy_db_host
+    bot.legacy_db_port = legacy_db_port.strip() or bot.legacy_db_port or settings.legacy_db_port
+    bot.legacy_db_user = legacy_db_user.strip() or bot.legacy_db_user or settings.legacy_db_user
+    if legacy_db_pass.strip():
+        bot.legacy_db_pass = legacy_db_pass.strip()
+    elif not bot.legacy_db_pass:
+        bot.legacy_db_pass = settings.legacy_db_pass
     if current_user.is_superadmin and token:
         cleaned_token = token.strip()
         if cleaned_token != bot.token:
             bot_username, token_error = await _fetch_bot_username(cleaned_token)
             if token_error:
-                detailed_bot = await _load_bot_detail_for_template(session, bot_id)
-                return templates.TemplateResponse(
-                    request=request,
-                    name="bot_detail.html",
-                    context={
-                        "current_user": current_user,
-                        "bot": detailed_bot or bot,
-                        "error": token_error,
-                    },
+                return await _render_bot_detail(
+                    request,
+                    session,
+                    current_user,
+                    bot_id,
+                    error=token_error,
                     status_code=400,
                 )
             bot.token = cleaned_token
             bot.bot_username = bot_username
 
     try:
+        await tenant_db.ensure_bot_database(bot)
         await session.commit()
+    except ValueError as exc:
+        await session.rollback()
+        return await _render_bot_detail(
+            request,
+            session,
+            current_user,
+            bot_id,
+            error=str(exc),
+            status_code=400,
+        )
     except IntegrityError:
         await session.rollback()
-        detailed_bot = await _load_bot_detail_for_template(session, bot_id)
-        return templates.TemplateResponse(
-            request=request,
-            name="bot_detail.html",
-            context={
-                "current_user": current_user,
-                "bot": detailed_bot or bot,
-                "error": "Bot nomi yoki token boshqa bot bilan to'qnashdi.",
-            },
+        return await _render_bot_detail(
+            request,
+            session,
+            current_user,
+            bot_id,
+            error="Bot nomi yoki token boshqa bot bilan to'qnashdi.",
+            status_code=400,
+        )
+    except Exception as exc:
+        await session.rollback()
+        return await _render_bot_detail(
+            request,
+            session,
+            current_user,
+            bot_id,
+            error=f"Bot bazasi tayyorlanmadi: {exc.__class__.__name__}",
             status_code=400,
         )
 
@@ -293,7 +416,10 @@ async def update_bot_settings(
         await request.app.state.runtime.restart_bot(bot.id)
     else:
         await request.app.state.runtime.sync_enabled_bots()
-    return RedirectResponse(f"/bots/{bot_id}", status_code=303)
+    return RedirectResponse(
+        f"/bots/{bot_id}?{urlencode({'success': 'Bot sozlamalari saqlandi.'})}",
+        status_code=303,
+    )
 
 
 @router.post("/{bot_id}/toggle")
@@ -310,7 +436,8 @@ async def toggle_bot_status(
     bot.is_active = not bot.is_active
     await session.commit()
     await request.app.state.runtime.sync_enabled_bots()
-    return RedirectResponse(f"/bots/{bot_id}", status_code=303)
+    message = "Bot ishga tushirildi." if bot.is_active else "Bot to'xtatildi."
+    return RedirectResponse(f"/bots/{bot_id}?{urlencode({'success': message})}", status_code=303)
 
 
 @router.post("/{bot_id}/restart")
@@ -324,7 +451,10 @@ async def restart_bot(
     if not bot:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot topilmadi")
     await request.app.state.runtime.restart_bot(bot.id)
-    return RedirectResponse(f"/bots/{bot_id}", status_code=303)
+    return RedirectResponse(
+        f"/bots/{bot_id}?{urlencode({'success': 'Bot qayta ishga tushirildi.'})}",
+        status_code=303,
+    )
 
 
 @router.post("/{bot_id}/admins")
@@ -368,4 +498,90 @@ async def create_bot_admin(
     else:
         await session.rollback()
 
-    return RedirectResponse(f"/bots/{bot_id}", status_code=303)
+    success_message = "Yangi admin qo'shildi."
+    return RedirectResponse(
+        f"/bots/{bot_id}?{urlencode({'success': success_message})}",
+        status_code=303,
+    )
+
+
+@router.get("/{bot_id}/users/export")
+async def export_bot_users(
+    bot_id: int,
+    format: str,
+    current_user: PanelUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    bot = await get_accessible_bot(bot_id, current_user, session)
+    if not bot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot topilmadi")
+
+    export_format = format.lower()
+    if export_format not in {"csv", "json"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Faqat csv yoki json formatlari mavjud")
+
+    try:
+        payload, media_type, filename = await tenant_db.export_users(bot, export_format)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return Response(content=payload, media_type=media_type, headers=headers)
+
+
+@router.post("/{bot_id}/users/import", response_model=None)
+async def import_bot_users(
+    bot_id: int,
+    request: Request,
+    file: UploadFile = File(...),
+    replace_existing: bool = Form(default=False),
+    current_user: PanelUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> HTMLResponse | RedirectResponse:
+    bot = await get_accessible_bot(bot_id, current_user, session)
+    if not bot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot topilmadi")
+
+    filename = file.filename or ""
+    payload = await file.read()
+    if not filename or not payload:
+        return await _render_bot_detail(
+            request,
+            session,
+            current_user,
+            bot_id,
+            error="Import uchun bo'sh bo'lmagan .csv yoki .json fayl tanlang.",
+            status_code=400,
+        )
+
+    try:
+        imported_count, _ = await tenant_db.import_users(
+            bot,
+            filename=filename,
+            payload=payload,
+            replace_existing=replace_existing,
+        )
+    except ValueError as exc:
+        return await _render_bot_detail(
+            request,
+            session,
+            current_user,
+            bot_id,
+            error=str(exc),
+            status_code=400,
+        )
+    except Exception as exc:
+        return await _render_bot_detail(
+            request,
+            session,
+            current_user,
+            bot_id,
+            error=f"Import bajarilmadi: {exc.__class__.__name__}",
+            status_code=400,
+        )
+
+    success_message = f"{imported_count} ta foydalanuvchi yuklandi."
+    return RedirectResponse(
+        f"/bots/{bot_id}?{urlencode({'success': success_message})}",
+        status_code=303,
+    )

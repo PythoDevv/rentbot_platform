@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     secret_key: str = "change-me"
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/rentbot"
+    database_admin_url: str | None = None
     superadmin_login: str = "superadmin"
     superadmin_password: str = "change-me-now"
     host: str = "0.0.0.0"

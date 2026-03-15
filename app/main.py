@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
-from app.db import Base, SessionLocal, engine
+from app.db import SessionLocal, ensure_platform_schema, engine
 from app.services.auth import ensure_superadmin
 from app.services.bot_runtime import BotRuntime
 from app.web.routers import auth, bots, dashboard
@@ -29,8 +29,7 @@ if uvloop is not None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
+    await ensure_platform_schema()
 
     async with SessionLocal() as session:
         await ensure_superadmin(
