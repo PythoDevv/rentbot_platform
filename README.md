@@ -28,6 +28,10 @@
 5. Panel: `http://localhost:8000/login`
 6. Superadmin login/parol `.env` dan olinadi.
 
+## Serverga deploy
+
+Server deploy uchun loyiha legacy `kbot` repo ichida `rentbot_platform/` papkasi sifatida joylashishi kerak. To'liq ko'rsatma: [DEPLOY_SERVER.md](/home/ilyos/bots/rentbot_platform/DEPLOY_SERVER.md)
+
 ## Muhim izoh
 
 - Siz polling talab qilganingiz uchun runner har botni alohida legacy process sifatida boshqaradi.

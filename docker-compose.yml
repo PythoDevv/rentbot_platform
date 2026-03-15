@@ -12,13 +12,14 @@ services:
   app:
     build:
       context: ..
-      dockerfile: rentbot_platform/Dockerfile
+      dockerfile: ${PLATFORM_DOCKERFILE:-rentbot_platform/Dockerfile}
+      args:
+        PLATFORM_DIR: ${PLATFORM_DIR:-rentbot_platform}
     container_name: rentbot-app
     restart: unless-stopped
     depends_on:
       - postgres
     env_file:
-      - ../.env
       - .env
     ports:
       - "8000:8000"
