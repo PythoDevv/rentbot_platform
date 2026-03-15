@@ -1,6 +1,17 @@
-.venv
-__pycache__
-.pytest_cache
-.mypy_cache
-*.pyc
-.env
+# Katta papkalar
+.venv/
+venv/
+*.sqlite3
+*.db
+*.log
+*.zip
+*.tar.gz
+*.dump
+
+# Media/uploads
+media/
+uploads/
+static/
+
+# Git
+.git/
