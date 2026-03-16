@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -53,6 +54,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax")
 app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 app.state.settings = settings
