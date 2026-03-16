@@ -15,6 +15,8 @@ Bu loyiha hozirgi holatda legacy `kbot` repo bilan birga ishlaydi. Eng xavfsiz d
 
 `rentbot_platform` papkasi legacy repo ichida bo'lishi kerak. Hozirgi `docker-compose.yml` build konteksti yuqoridagi `kbot` ildiziga qaraydi.
 
+Agar bu repo legacy `kbot` ga sibling bo'lib tursa, `.env` ichida `LEGACY_REPO_ROOT=../kbot` deb ko'rsating.
+
 ## 1. Serverga fayllarni joylash
 
 ```bash
@@ -45,6 +47,7 @@ Kamida quyidagilarni o'zgartiring:
 
 Compose uchun qo'shimcha yo'l sozlamalari:
 
+- `LEGACY_REPO_ROOT=..`
 - `PLATFORM_DIR=rentbot_platform`
 - `PLATFORM_DOCKERFILE=rentbot_platform/Dockerfile`
 

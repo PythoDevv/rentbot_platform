@@ -4,7 +4,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT_DIR/.env"
-PARENT_DIR="$(cd "$ROOT_DIR/.." && pwd)"
 
 if [[ ! -f "$ENV_FILE" ]]; then
     echo "ERROR: .env file not found at $ENV_FILE"
@@ -14,6 +13,11 @@ fi
 
 get_env_value() {
     local key="$1"
+    local shell_value="${!key-}"
+    if [[ -n "$shell_value" ]]; then
+        echo "$shell_value"
+        return
+    fi
     grep -E "^${key}=" "$ENV_FILE" | head -n1 | cut -d= -f2- || true
 }
 
@@ -54,6 +58,7 @@ warn_if_default "PUBLIC_BASE_URL" "http://localhost:8000"
 
 platform_dir="$(get_env_value "PLATFORM_DIR")"
 platform_dockerfile="$(get_env_value "PLATFORM_DOCKERFILE")"
+legacy_repo_root="$(get_env_value "LEGACY_REPO_ROOT")"
 
 if [[ -z "$platform_dir" ]]; then
     platform_dir="rentbot_platform"
@@ -63,19 +68,29 @@ if [[ -z "$platform_dockerfile" ]]; then
     platform_dockerfile="rentbot_platform/Dockerfile"
 fi
 
+if [[ -z "$legacy_repo_root" ]]; then
+    legacy_repo_root=".."
+fi
+
+if [[ "$legacy_repo_root" = /* ]]; then
+    legacy_root="$legacy_repo_root"
+else
+    legacy_root="$(cd "$ROOT_DIR/$legacy_repo_root" && pwd)"
+fi
+
 if [[ "$(basename "$ROOT_DIR")" != "$platform_dir" ]]; then
     echo "ERROR: repo folder name is '$(basename "$ROOT_DIR")' but PLATFORM_DIR is '$platform_dir'"
     exit 1
 fi
 
-if [[ ! -f "$PARENT_DIR/app.py" ]]; then
-    echo "ERROR: legacy bot entrypoint not found at $PARENT_DIR/app.py"
-    echo "Expected layout: <legacy-repo-root>/$platform_dir"
+if [[ ! -f "$legacy_root/app.py" ]]; then
+    echo "ERROR: legacy bot entrypoint not found at $legacy_root/app.py"
+    echo "Expected layout: LEGACY_REPO_ROOT must point to the legacy repo root."
     exit 1
 fi
 
-if [[ ! -f "$PARENT_DIR/requirements.txt" ]]; then
-    echo "ERROR: legacy requirements.txt not found at $PARENT_DIR/requirements.txt"
+if [[ ! -f "$legacy_root/requirements.txt" ]]; then
+    echo "ERROR: legacy requirements.txt not found at $legacy_root/requirements.txt"
     exit 1
 fi
 
@@ -89,6 +104,11 @@ if [[ "$platform_dockerfile" != "$platform_dir/Dockerfile" ]]; then
     echo "Make sure docker-compose.yml can reach this path from the legacy repo root."
 fi
 
+if [[ ! -f "$legacy_root/.dockerignore" ]]; then
+    echo "WARNING: legacy repo root does not have .dockerignore at $legacy_root/.dockerignore"
+    echo "Large folders like venv/.git may slow Docker builds."
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: docker is not installed"
     exit 1
@@ -100,4 +120,5 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 echo "OK: deploy prerequisites look good"
+echo "Using LEGACY_REPO_ROOT=$legacy_root"
 echo "Next step: docker compose up --build -d"

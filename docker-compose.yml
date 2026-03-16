@@ -11,7 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
   app:
     build:
-      context: ..
+      context: ${LEGACY_REPO_ROOT:-..}
       dockerfile: ${PLATFORM_DOCKERFILE:-rentbot_platform/Dockerfile}
       args:
         PLATFORM_DIR: ${PLATFORM_DIR:-rentbot_platform}
