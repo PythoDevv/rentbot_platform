@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import logging
 from secrets import token_hex
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from aiogram import Bot
@@ -20,12 +23,25 @@ from app.services.auth import create_panel_user
 from app.services.tenant_db import TenantDatabaseManager, generate_database_name
 from app.web.dependencies import get_accessible_bot, get_current_user, require_superadmin
 
+if TYPE_CHECKING:
+    pass
+
 
 router = APIRouter(prefix="/bots", tags=["bots"])
 templates = Jinja2Templates(directory="app/web/templates")
 logger = logging.getLogger(__name__)
 settings = get_settings()
 tenant_db = TenantDatabaseManager(settings)
+
+
+def _user_to_dict(user: PanelUser) -> dict:
+    """Convert PanelUser ORM object to dict to avoid lazy-loading issues in templates."""
+    return {
+        "id": user.id,
+        "login": user.login,
+        "is_superadmin": user.is_superadmin,
+        "is_active": user.is_active,
+    }
 
 
 async def _fetch_bot_username(token: str) -> tuple[str | None, str | None]:
@@ -45,7 +61,7 @@ async def _fetch_bot_username(token: str) -> tuple[str | None, str | None]:
 
 def _default_create_context(current_user: PanelUser, error: str | None = None, form: dict | None = None) -> dict:
     return {
-        "current_user": current_user,
+        "current_user": _user_to_dict(current_user),
         "error": error,
         "default_legacy_admins": settings.legacy_admins or "",
         "form": form
@@ -104,7 +120,7 @@ async def _render_bot_detail(
         request=request,
         name="bot_detail.html",
         context={
-            "current_user": current_user,
+            "current_user": _user_to_dict(current_user),
             "bot": bot,
             "error": error,
             "success": success,
@@ -137,7 +153,7 @@ async def bot_list(
         request=request,
         name="bots.html",
         context={
-            "current_user": current_user,
+            "current_user": _user_to_dict(current_user),
             "bots": bots,
         },
     )

@@ -10,6 +10,15 @@ from app.models import BotMembership, BotTenant, PanelUser
 from app.web.dependencies import get_current_user
 
 
+def _user_to_dict(user: PanelUser) -> dict:
+    return {
+        "id": user.id,
+        "login": user.login,
+        "is_superadmin": user.is_superadmin,
+        "is_active": user.is_active,
+    }
+
+
 router = APIRouter()
 templates = Jinja2Templates(directory="app/web/templates")
 
@@ -44,7 +53,7 @@ async def dashboard(
         request=request,
         name="dashboard.html",
         context={
-            "current_user": current_user,
+            "current_user": _user_to_dict(current_user),
             "total_bots": total_bots or 0,
             "active_bots": active_bots or 0,
             "total_admins": total_admins or 0,
