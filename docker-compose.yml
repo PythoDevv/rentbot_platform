@@ -12,11 +12,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: ${PLATFORM_DOCKERFILE:-Dockerfile}
-      args:
-        PLATFORM_DIR: ${PLATFORM_DIR:-rentbot_platform}
-      additional_contexts:
-        legacy_src: ${LEGACY_REPO_ROOT:-..}
+      dockerfile: Dockerfile
     container_name: rentbot-app
     restart: unless-stopped
     depends_on:
