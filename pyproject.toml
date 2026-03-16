@@ -19,6 +19,9 @@ dependencies = [
     "uvloop>=0.19,<1.0; sys_platform != 'win32'",
 ]
 
+[tool.setuptools]
+packages = ["app"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]

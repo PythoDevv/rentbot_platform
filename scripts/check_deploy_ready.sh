@@ -65,7 +65,7 @@ if [[ -z "$platform_dir" ]]; then
 fi
 
 if [[ -z "$platform_dockerfile" ]]; then
-    platform_dockerfile="rentbot_platform/Dockerfile"
+    platform_dockerfile="Dockerfile"
 fi
 
 if [[ -z "$legacy_repo_root" ]]; then
@@ -99,9 +99,9 @@ if [[ ! -f "$ROOT_DIR/Dockerfile" ]]; then
     exit 1
 fi
 
-if [[ "$platform_dockerfile" != "$platform_dir/Dockerfile" ]]; then
+if [[ "$platform_dockerfile" != "Dockerfile" ]]; then
     echo "WARNING: PLATFORM_DOCKERFILE is '$platform_dockerfile'"
-    echo "Make sure docker-compose.yml can reach this path from the legacy repo root."
+    echo "Make sure docker-compose.yml can reach this path from the platform repo root."
 fi
 
 if [[ ! -f "$legacy_root/.dockerignore" ]]; then

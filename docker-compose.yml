@@ -11,10 +11,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
   app:
     build:
-      context: ${LEGACY_REPO_ROOT:-..}
-      dockerfile: ${PLATFORM_DOCKERFILE:-rentbot_platform/Dockerfile}
+      context: .
+      dockerfile: ${PLATFORM_DOCKERFILE:-Dockerfile}
       args:
         PLATFORM_DIR: ${PLATFORM_DIR:-rentbot_platform}
+      additional_contexts:
+        legacy_src: ${LEGACY_REPO_ROOT:-..}
     container_name: rentbot-app
     restart: unless-stopped
     depends_on:

@@ -49,7 +49,7 @@ Compose uchun qo'shimcha yo'l sozlamalari:
 
 - `LEGACY_REPO_ROOT=..`
 - `PLATFORM_DIR=rentbot_platform`
-- `PLATFORM_DOCKERFILE=rentbot_platform/Dockerfile`
+- `PLATFORM_DOCKERFILE=Dockerfile`
 
 Agar papka nomini o'zgartirsangiz, ikkala qiymatni ham mos ravishda yangilang.
 

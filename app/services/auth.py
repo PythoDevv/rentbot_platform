@@ -13,6 +13,19 @@ async def ensure_superadmin(
     result = await session.execute(select(PanelUser).where(PanelUser.login == login))
     user = result.scalar_one_or_none()
     if user:
+        changed = False
+        if not user.is_superadmin:
+            user.is_superadmin = True
+            changed = True
+        if not user.is_active:
+            user.is_active = True
+            changed = True
+        if not verify_password(password, user.password_hash):
+            user.password_hash = hash_password(password)
+            changed = True
+        if changed:
+            await session.commit()
+            await session.refresh(user)
         return user
 
     user = PanelUser(
